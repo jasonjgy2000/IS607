@@ -1,0 +1,68 @@
+---
+title: "Week 3 Data Transformation"
+author: "Jason Joseph"
+date: "September 11, 2015"
+output: html_document
+---
+Using: Auto-Mpg Data from University of California.
+URL: https://archive.ics.uci.edu/ml/datasets/Auto+MPG
+
+```{r echo=FALSE}
+library(RCurl)
+library(foreign)
+```
+
+
+
+```{r}
+#Load Data set
+auto_mpg_data <- getURL("https://raw.githubusercontent.com/jasonjgy2000/IS607/ee3ff28ee83ad2f9beecfcc56b58fec367517e06/Assignments/Week%203/auto-mpg.data")
+data_set <- read.table(textConnection(auto_mpg_data),header=FALSE )
+
+# View first 10 rows of the dataframe
+data_set[1:10,]
+```
+
+
+
+```{r}
+# Assign column names to the dataframe
+
+names(data_set) <- c("mpg","cylinders","displacement","horsepower","weight","acceleration","model year","origin","car name")
+
+# View the first 8 rows of the dataframe
+data_set[1:8,]
+```
+
+```{r}
+
+# I noticed that the data within the "car name" column consisted of the car's manufacter and model. My next step is to separate and place them into sepearate columns.
+
+rexp <- "^(\\w+)\\s?(.*)$"
+data_set$manufacturer <- sub(rexp,"\\1",data_set$`car name`)
+data_set$model <- sub(rexp,"\\2",data_set$`car name`)
+```
+
+```{r}
+# View the first 8 rows of the dataframe
+data_set[1:3,]
+```
+
+```{r}
+# My next step is to remove the "car name" column as it is no longer needed.
+data_set$`car name` <- NULL
+
+# View the first 8 rows of the dataframe
+data_set[1:3,]
+```
+
+
+
+```{r}
+# I observed that vehiches with origin "1" were manufactured in North America, "2" Europe and "3" Asia. My next step is to transform the dataframe to reflect this.
+data_set$origin <- ifelse(data_set$origin == 1,"North America", ifelse(data_set$origin == 2,"Europe","Asia") )
+
+# View first 60 rows of the transformed dataframe
+data_set[1:60,]
+```
+
