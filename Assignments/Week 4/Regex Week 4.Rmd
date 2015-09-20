@@ -1,0 +1,92 @@
+---
+title: "Regex Assignment - Week 4"
+author: "Jason Joseph"
+date: "September 20, 2015"
+output: html_document
+---
+
+```{r echo=FALSE}
+library(stringr)
+```
+
+1) Describe the types of strings that conform to the following regular expressions and construct an example that is matched by the regular expression.
+
+a. [0-9]+\\\\$
+
+     This expression is looking for any number of digits preceding a backslash. With the backslash being the end of the string. e.g. **1234\\**
+     
+b. \\\\b[a-z]{1,4}\\\\b
+    
+    This expression is looking for a string with a backslash followed by a **"b"** then  one to four letters with another **"b"** following. The last **"b"** doesn't have to be the last element in the string. e.g. **\\boys\\being**
+    
+
+c. .*?\\.txt$ 
+
+    This expression is validating a string with any alphanemeric chracters followed by a backslash then by any character then txt. With txt being the end of the string. e.g.**"hello\\stxt"**
+    
+    
+
+d. \\\\d{2}/\\\\d{2}/\\\\d{4}
+
+    The expression is validating a backslash followed by two d's preceding a foward slash followed by a backslash and two d's followed by another forwardslash and four d's. e.g.**"\\dd\/\\dd\/\\dddd"**
+    
+e.   <(.+?)>.+?<\/\\\\1>  
+
+    This expression is looking for a string that begins with character/s surrounded by a less-than and more than sign preceding that can be any character/word/s which is followed by a less-than sign, a backslash then the number one followed by the more-than sign.  e.g. **"\<hey1234>test<\/\\1>"**
+
+
+2) Rewrite the expression [0-9]+\\\\$ in a way that all elements are altered but the expression performs the same task. **"\^\\d*[\\]\$"**
+
+  
+```{r}
+#  "^\\d*[\\]$"
+pat <- "^\\d*[\\\\]"
+st <- "1234\\"
+str_match(st,pat)
+```
+
+
+3 Consider the mail address chunkylover53[at]aol[dot]com
+
+a) Transforming the email address to a standard mail format.
+```{r}
+# step 1 find and replace [at] with @
+r <- "chunkylover53[at]aol[dot]com"
+pat1 <- "\\[at\\]"
+r <- str_replace(r,pat1,"@")
+
+r
+
+# step2 find and replace [dot] with .
+pat1 <- "\\[dot\\]"
+r <- str_replace(r,pat1,".")
+r
+```
+
+b) Using [:digit:] as the regular expression pattern would fail because it would extract the first number it encounters. To fix this we append "+"which will allow us to extract all the digits in the email address.
+
+Before Correction
+```{r}
+pat1 <- "[:digit:]"
+str_extract(r,pat1)
+```
+After Correction
+```{r}
+pat1 <- "[:digit:]+"
+str_extract(r,pat1)
+```
+
+c) Using "\\\\D" as the regular expression to extract the numbers in the email address would fail because it would identify the first character in the string that is not a number.The correct expression would be "\\\\d+".
+
+Before Correction
+```{r}
+pat1 <- "\\D"
+str_extract(r,pat1)
+```
+After Correction
+```{r}
+pat1 <- "\\d+"
+str_extract(r,pat1)
+```
+
+
