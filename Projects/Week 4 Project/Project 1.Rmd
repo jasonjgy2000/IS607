@@ -1,0 +1,105 @@
+---
+title: "Project 1"
+author: "Jason Joseph"
+date: "September 22, 2015"
+output: html_document
+---
+```{r echo=FALSE}
+library(RCurl)
+library(stringr)
+library(foreign)
+```
+ **Overview**
+
+The objective of this project is to import and transform the structure of a text file with contains the results of a  chess tournament and produce a CSV output of the results. 
+My game plan for this project was to import the results into a data frame. I would then massage the frame's structure to match the layout required for the  CSV output. To achieve the desired result the following steps were taken:
+
+**Step 1**: Import Chess Tournament Result Data into R
+
+
+```{r}
+#Load chess tournament data 
+data_set <- read.table("https://raw.githubusercontent.com/jasonjgy2000/IS607/master/Projects/Week%204%20Project/tournamentinfo.txt",skip = 3,sep = "|",fill = TRUE,header = FALSE)
+head(data_set)
+```
+
+**Step 2**: Remove rows that were filled with the line separator "---" that was used in the text file. I then  removed the extra column that was created during the import.
+
+```{r}
+#Remove rows filled with seperating character "---"
+data_set <- subset(data_set,!grepl("-{1,}",data_set$V1))
+# Remove extra column (V11) and row names column
+data_set$V11 <- data_set$row.names <- NULL
+head(data_set)
+```
+
+**Step 3**: I assigned user-friendly column names to the data frame.
+
+```{r}
+# assign column names to data frame
+colnames(data_set) <- c("Pair_num","Player_Name", "Total Number of Points","Round_1","Round_2","Round_3","Round_4","Round_5","Round_6","Round_7")
+head(data_set)
+```
+
+**Step 4**:  I extracted each player's pre- rating score and merged them into the row
+with the player's information under the column heading "pre-rating". I then removed the extra rows.
+
+```{r}
+# Extract players pre-rating into from seperate column and merge
+exp <- "([R]\\:\\s*[[:digit:]]+)"
+n <- 1
+while(n < nrow(data_set))
+{
+  data_set$state[n] <- toString(data_set$Pair_num[n+1])
+  data_set$pre_rating[n] <- str_extract(str_extract(data_set$Player_Name[n+1],exp),"[[:digit:]]+")
+  data_set$state[n+1] <- NA
+  data_set$pre_rating[n+1] <- NA
+  n <- n+2
+}
+
+# remove extra rows 
+data_set <- subset(data_set,grepl("[[:digit:]]",data_set$Pair_num))
+head(data_set)
+```
+
+**Step 5**: I created a function that accepts each player's round data and returns the average pre-chess rating of their opponents that was assigned to the opp_aver column within the data frame.
+
+```{r}
+#calcuate mean 
+exp <- "[[:digit:]]+"
+
+calMean <- function(x1,x2,x3,x4,x5,x6,x7){
+  items <- c(as.numeric(data_set$pre_rating[as.numeric(str_extract(x1,exp))]),
+             as.numeric(data_set$pre_rating[as.numeric(str_extract(x2,exp))]),
+             as.numeric(data_set$pre_rating[as.numeric(str_extract(x3,exp))]),
+             as.numeric(data_set$pre_rating[as.numeric(str_extract(x4,exp))]),
+             as.numeric(data_set$pre_rating[as.numeric(str_extract(x5,exp))]),
+             as.numeric(data_set$pre_rating[as.numeric(str_extract(x6,exp))]),
+             as.numeric(data_set$pre_rating[as.numeric(str_extract(x7,exp))]))
+  
+  return (round(mean(items,na.rm = TRUE)))
+  
+}
+
+data_set$opp_aver <- mapply(calMean,data_set$Round_1,data_set$Round_2,data_set$Round_3,data_set$Round_4,data_set$Round_5,data_set$Round_6,data_set$Round_7)
+head(data_set)
+```
+**Step 6**: All non-essential columns were removed. I then renamed each column to reflect those required in the CSV output. I then reorder the columns to match the ordering provided for the CSV.
+
+```{r}
+# remove extra columns 
+data_set$row.names <- data_set$Pair_num <- data_set$Round_1 <- data_set$Round_2 <- data_set$Round_3 <- data_set$Round_4 <- data_set$Round_4 <- data_set$Round_5  <- data_set$Round_6 <- data_set$Round_7 <- NULL
+row.names(data_set) <- NULL
+# rename columns 
+colnames(data_set) <- c("Player's Name","Total Number of Points","State","Player's Pre-Rating","Average Pre Chess Rating of Opponents")
+
+# reorder columns 
+data_set <- data_set[c(1,3,2,4,5)]
+head(data_set)
+```
+**Step 7**: Now that the structure of the data frame matches the structure required for the CSV output, the "write.CSV" function was used to output the data frame into the CSV format. 
+
+```{r}
+# create csv
+write.csv(data_set,"output.csv")
+```
