@@ -1,0 +1,53 @@
+---
+title: "Assignment 3 - Tidy Data"
+author: "Jason Joseph"
+date: "September 30, 2015"
+output: html_document
+---
+```{r echo=FALSE}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+```
+
+# Import Data 
+```{r}
+# import csv into R 
+flights <- read.csv("https://raw.githubusercontent.com/jasonjgy2000/IS607/master/Assignments/Week%206/flights.csv")
+head(flights)
+```
+# Data Cleansing
+
+I noticed that the 3^rd^ row of the dataframe was empty. I also noticed that the 2^nd^ and 5^th^ observation were missing the airline data. So I then proceeded to remove the 3^rd^ row and fill in the missing data.
+```{r}
+#remove empty row
+flights <- flights[c("1","2","4","5"),]
+# Giving columns names
+colnames(flights)[1] <- "Airline"
+colnames(flights)[2] <- "Status"
+# filling in missing data
+flights[2,1] <-"ALASKA"
+flights[4,1] <-"AMWEST"
+head(flights)
+```
+# Data Wrangling
+```{r}
+# transforming the data structure from wide to long
+flights <- flights %>%  gather("City","n",3:7) %>% spread(Status,n)
+head(flights)
+```
+
+# Analysis
+
+```{r}
+i <- flights %>% group_by(Airline) %>% summarise(dmean = mean(as.integer(delayed)))
+# barplot of each airline's mean delays.
+ggplot(data = i, aes(x=Airline, y= dmean, fill=Airline)) + geom_bar(stat = "identity")
+```
+
+
+```{r}
+i <- flights %>% group_by(Airline,City) %>% summarise(dmean = mean(as.integer(delayed)))
+# barplot of delays grouped by airline and city.
+ggplot(data = i, aes(x=Airline, y= dmean,fill = City)) + geom_bar(stat = "identity", position=position_dodge())
+```
