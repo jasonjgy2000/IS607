@@ -1,0 +1,88 @@
+---
+title: "U.S. International Trade Data"
+author: "Jason Joseph"
+date: "October 7, 2015"
+output: html_document
+---
+# Questions for  Analysis: 
+
+1). Calculate the average goods export for each month over the three-year span.
+
+2). Calculate the average goods import for each month over the three-year span.
+
+3). Calculate the average services export for each month over the three-year span.
+
+4). Calculate the average services import for each month over the three-year span.
+
+```{r echo=FALSE}
+library(dplyr)
+library(tidyr)
+```
+# Import Data 
+
+Thanks to this artice from stackoverflow, which gived me the idea of replacing missing values with NA.
+
+http://stackoverflow.com/questions/13822801/whats-the-best-way-to-replace-missing-values-with-na-when-reading-in-a-csv
+
+```{r}
+data_set <- read.csv("https://raw.githubusercontent.com/jasonjgy2000/IS607/master/Projects/Project%202/International%20Trade%20in%20Goods%20and%20Services.csv",skip = 2,na.strings = c("","NA"))
+head(data_set)
+```
+
+# Data Cleansing
+```{r}
+#assigning user-friendly column names
+colnames(data_set) <- c("Period","GoodsType","2013-Export","2013-Import","2014-Export","2014-Import","2015-Export","2015-Import")
+# removing empty rows
+data_set <- filter(data_set,!is.na(data_set$GoodsType))
+# fill missing data - Thanks Joy! 
+name_rows<-seq(from = 1, to = nrow(data_set), by=2)
+nameless_rows<-seq(from = 2, to = nrow(data_set), by=2)
+data_set[nameless_rows,1]<-data_set[name_rows,1]
+head(tbl_df(data_set))
+
+```
+# Data Transformation
+```{R}
+data_set<- data_set %>%  gather("Year","Amount",3:8) %>%  separate("Year",c("Year","Transaction"),sep="-")
+# Remove "," from Amount figures. Thanks Youqing!
+data_set$Amount <- as.numeric(gsub(',','',data_set$Amount))
+head(tbl_df(data_set))
+```
+
+# Analysis
+
+Question 1 : Calculate the average goods export for each month over the three-year span.
+
+```{r}
+
+mMean <- data_set %>% filter(!GoodsType == "Services" & Transaction =="Export") %>% group_by(Period) %>% summarise(pmean = mean(Amount))
+mMean
+```
+
+
+Question 2 : Calculate the average goods import for each month over the three-year span.
+
+```{r}
+
+mMean <- data_set %>% filter(!GoodsType == "Services" & Transaction =="Import") %>% group_by(Period) %>% summarise(pmean = mean(Amount))
+mMean
+```
+
+Question 3 : Calculate the average services export for each month over the three-year span.
+
+```{r}
+
+mMean <- data_set %>% filter(GoodsType == "Services" & Transaction =="Export") %>% group_by(Period) %>% summarise(pmean = mean(Amount))
+mMean
+```
+
+
+
+Question 4 : Calculate the average services import for each month over the three-year span.
+
+```{r}
+
+mMean <- data_set %>% filter(GoodsType == "Services" & Transaction =="Import") %>% group_by(Period) %>% summarise(pmean = mean(Amount))
+mMean
+```

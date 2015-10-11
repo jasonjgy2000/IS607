@@ -1,0 +1,41 @@
+---
+title: "MLB Team Wins"
+author: "Jason Joseph"
+date: "October 8, 2015"
+output: html_document
+---
+
+```{r echo=FALSE}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+require(scales)
+```
+
+# Question for  Analysis: 
+
+1) Compare year over year win totals
+
+# Import Data 
+
+```{r}
+data_set <- read.csv("https://raw.githubusercontent.com/jasonjgy2000/IS607/master/Projects/Project%202/MLBTeamWins.csv")
+head(tbl_df(data_set))
+```
+
+# Data Transformation
+Transforming the data frame from wide to long.
+```{r}
+data_set <- gather(data_set,"team","score",2:33)
+head(data_set)
+```
+
+# Analysis
+Comparing year over year win totals
+
+```{r}
+i<- data_set %>%  group_by(Year,team) %>% summarise(total = sum(score,na.rm = TRUE))
+
+ggplot(data = i, aes(x=Year, y=total, fill=team)) + geom_bar(stat = "identity",  position="dodge")
+
+```

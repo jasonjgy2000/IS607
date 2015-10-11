@@ -1,0 +1,55 @@
+---
+title: "Crime Stats - Brian Kreis"
+author: "Jason Joseph"
+date: "October 11, 2015"
+output: html_document
+---
+```{r echo=FALSE}
+library(dplyr)
+library(tidyr)
+library(gdata)
+library(ggplot2)
+require(scales)
+library(RCurl)
+```
+
+# Import Data 
+```{r}
+data_set <- read.csv("https://raw.githubusercontent.com/jasonjgy2000/IS607/master/Projects/Project%202/crime_trends.csv",skip=3)
+head(tbl_df(data_set))
+```
+
+# Data Cleansing
+```{r}
+#Filling missing data
+ name_rows<-seq(from = 1, to = nrow(data_set), by=3)
+ nameless_rows1<-seq(from = 2, to = nrow(data_set), by=3)
+ data_set[nameless_rows1,1]<-data_set[name_rows,1]
+# give year column suitable name
+ colnames(data_set)[2] <- "Year"
+#extract group information from data set
+ data_set <- subset(data_set,grepl("^[Group].+",data_set$Population.group))
+ 
+#remove remaining rows with summary information
+ data_set <- data_set[c(TRUE,TRUE,FALSE),]
+
+#remove columns filled with NA and summary data
+ data_set <- data_set[,1:12]
+ 
+ head(tbl_df(data_set))
+```
+
+# Data Transformation
+```{r}
+data_set <- data_set %>%  gather("Crime","count",3:12)
+# remove formating from count column
+ data_set$count <- as.numeric(gsub(',','',data_set$count))
+head(tbl_df(data_set))
+```
+
+# Analysis
+```{r}
+i <- data_set %>% group_by(Year,Crime) %>% summarise(total = sum(count))
+head(i)
+ggplot(data = i, aes(x=Year, y= total, fill=Crime)) + geom_bar(stat = "identity") + scale_y_continuous(labels = comma)  
+```
