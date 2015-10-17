@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<books>
+	<book>
+		<Title>Doing Bayesian Data Analysis</Title>
+		<Authors>John Kruschke</Authors>
+		<Year_Published>2015</Year_Published>
+		<Publisher>Academic Press</Publisher>
+		<ISBN-10>0124058884</ISBN-10>
+	</book>
+
+	<book>
+		<Title>Further Pure 1 for OCR</Title>
+		<Authors>Douglas Quadling, Hugh Neill</Authors>
+		<Year_Published>2004</Year_Published>
+		<Publisher>Cambridge University Press</Publisher>
+		<ISBN-10>0521548985</ISBN-10>
+	</book>
+	<book>
+		<Title>Into Thin Air</Title>
+		<Authors>Jon Krakauer, Randy Rackliff</Authors>
+		<Year_Published>1999</Year_Published>
+		<Publisher>Anchor</Publisher>
+		<ISBN-10>0385494785</ISBN-10>
+	</book>
+</books>
