@@ -1,0 +1,51 @@
+---
+title: "Working with XML and Json"
+author: "Jason Joseph"
+date: "October 17, 2015"
+output: html_document
+---
+```{r echo=FALSE}
+require(XML)
+require(RJSONIO)
+require(RCurl)
+```
+
+#HTML
+
+```{r}
+# load html file from github
+url <- getURL("https://raw.githubusercontent.com/jasonjgy2000/IS607/master/Assignments/Week%207/books.html")
+html_data_set <- readHTMLTable(url)
+# convert list to dataframe
+html_data_set <- do.call("rbind",html_data_set)
+# remove row names
+row.names(html_data_set) <- NULL
+html_data_set
+```
+  
+#XML
+```{r}
+# load xml file from github
+url <- getURL("https://raw.githubusercontent.com/jasonjgy2000/IS607/master/Assignments/Week%207/books.xml")
+xml_data_set <- xmlParse(url)
+# get root element of the data set
+root <- xmlRoot(xml_data_set)
+xml_data_set <- xmlToDataFrame(root)
+xml_data_set
+```
+
+#JSON
+
+```{r}
+# load json file from github
+url <- getURL("https://raw.githubusercontent.com/jasonjgy2000/IS607/master/Assignments/Week%207/books.xml")
+json_data_set <- fromJSON("books.json")
+# unlisting data set from outer list
+json_data_set <- sapply(json_data_set[[1]], unlist) 
+# convert list to dataframe
+json_data_set <- do.call("rbind",json_data_set)
+json_data_set
+```
+
+#Conclusion
+Even though each file type required different processing, the dataframe produced by each are identical. 
