@@ -1,0 +1,37 @@
+---
+title: "Web API"
+author: "Jason Joseph"
+date: "October 30, 2015"
+output: html_document
+---
+```{r echo=FALSE}
+#require(RJSONIO)
+require(XML)
+```
+
+For this assignment I choose to query the Movie Reviews API.
+
+#Buiding API query URL
+
+```{r}
+base_url <- "http://api.nytimes.com/svc/movies/v2/reviews/picks"
+response_format <-"xml"
+api_key <- "8cf79f3353f439b9af033db83ab98d78%3A13%3A73314805"
+
+url <- sprintf("%s.%s?api-key=%s", base_url, response_format, api_key)
+```
+
+#Get Response 
+```{r}
+response <- xmlParse(url)
+
+# get root element of the data set
+response_root <- xmlRoot(response)
+
+response_childeren <-xmlChildren(response_root)
+
+response_df <- xmlToDataFrame(response_childeren$results)
+
+head(response_df)
+
+```
