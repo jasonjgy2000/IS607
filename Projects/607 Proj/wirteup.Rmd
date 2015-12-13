@@ -1,0 +1,347 @@
+---
+title: "IS607: Data Acquisition and Management Final Project"
+author: "Jason Joseph"
+date: "December 1, 2015"
+output:
+  html_document:
+    toc: true
+    theme: spacelab
+    highlight: textmate
+---
+
+```{r echo=FALSE, message=FALSE,warning=FALSE}
+setwd("C:\\GradSchool\\607 Proj")
+library(XML)
+library(sqldf)
+library(ggplot2)
+library(stringr)
+library(dplyr)
+library(tidyr)
+```
+
+
+
+# Introduction
+
+The education sector is one of the most important areas of development in any country. The educational system is the foundation on which a country's human resource is moulded so they can make a contribution to the country's development. Year after year governments touts on the increased amount of money allocated and spent on their educational system. The government of Guyana also touts on increased spending in the education sector, but still the majority of Guyana's population remains uneducated. I am curious to discover whether the amount spent on education influences a country's literacy rate, pupil to teacher ratio and the number of students enroled in primary, secondary and tertiary schools.
+
+# Data Acquisition
+
+## Functions
+
+### World Bank API
+
+The World Bank database was my primary source where I retrieved my data. So I found it fitting to write a function to retrieve, clean and transform the data from the World Bank website via its API.  
+
+```{r}
+fetchIndicatorValues <- function(indicator)
+{
+  url.base <- sprintf("http://api.worldbank.org/countries/all/indicators/%s?format=xml&per_page=10000",indicator)
+  doc.xml <- xmlParse(url.base)
+  
+  # get root element of the data set
+  doc.xml.root <- xmlRoot(doc.xml)
+  
+  ## getting number of pages from the xml root attribute
+  pages <- as.integer(xmlAttrs(doc.xml.root)[["pages"]])
+  
+  # creating an empty dataframe to store the query results
+  data.set <- data.frame(indicator = character(0),country = character(0),value = double(0),decimal=integer(0),stringsAsFactors = FALSE)
+  
+  # iterating over the pages and storing the query restults into the data.set dataframe
+  for(i in 1:pages)
+  {
+    url.page <- sprintf("%s&page=%s",url.base,i) 
+    doc.xml <- xmlParse(url.page)
+    doc.xml.root <- xmlRoot(doc.xml)
+    doc.xml.elements <-xmlChildren(doc.xml.root)
+    doc.df <- xmlToDataFrame(doc.xml.elements,stringsAsFactors = FALSE)
+    data.set <- rbind(data.set,doc.df)
+  }
+  
+  # Transforming the value column from chracter to double class type
+  data.set$value <- as.double(data.set$value)
+  # Transforming the date column from chracter to integer class type
+  data.set$date <- as.integer(data.set$date)
+  #removing unwanted columns
+  data.set$indicator <- data.set$decimal <- NULL
+  # removing records with NA values
+  data.set <- na.omit(data.set)
+  # Removing continent and special country grouping
+  data.set <- subset(data.set, !(country %in% group.items$country))
+  # removing rownames so a recount of the row numbers can be triggered
+  row.names(data.set) <- NULL
+  # Replacing ' from country names to an empty space 
+  data.set$country <- str_replace_all(data.set$country,"'"," ")
+  return(data.set)
+} 
+
+```
+
+### Calculating Mean Values
+
+The datasets contain values for each country for several years. For this project and the analysis that follows later down in the pipeline. I needed to calculate the mean value and expenditure over that time frame. The function below does exactly that. 
+
+```{r}
+
+calculateMeanVals <- function(countryName,tableName, col1,col2,col3 = NA)
+{
+ if(is.na(col3))
+    {
+     col3 <- ""
+    }
+    else
+    {
+     col3 <- sprintf(",%s",col3)
+    }
+  
+  # Select the records for a country and calculates the min/max date and average value and expenditure for that period
+  
+  df <- sqldf(sprintf("Select  country,min(date) as minDate,max(date) as maxDate ,AVG(%s)as %s,AVG(%s)as %s 
+                      %s
+                      FROM 
+                      '%s' where country = '%s'
+                      GROUP BY country %s"
+                      ,col1, 
+                      sprintf("avg_%s",col1) ,
+                      col2,
+                      sprintf("avg_%s",col2),
+                      col3,
+                      tableName,
+                      countryName,
+                      col3))
+  
+  return(df)
+}
+```
+### List of grouped regions
+
+The datasets contained values for grouped regions e.g. Caribbean small states, Euro area, etc. I created a text file that contains the grouped regions that will be used to filter out those values from the datasets.
+
+```{r}
+# list of regions that are grouped in the dataset
+group.items <- read.table("https://raw.githubusercontent.com/jasonjgy2000/IS607/master/Projects/607%20Proj/Data/expList.txt",stringsAsFactors = FALSE,header = FALSE,sep = "\t",col.names = c("country"))
+
+```
+
+## Government expenditure on education, total (% of government expenditure)
+
+Retrieving the general government expenditure on education (current, capital, and transfers) is expressed as a percentage of total general government expenditure on all sectors and storing it into a data frame.
+
+```{r}
+gov.exp.df <- fetchIndicatorValues("SE.XPD.TOTL.GB.ZS")
+head(gov.exp.df)
+```
+
+
+## Literacy rate, adult total (% of people ages 15 and above)
+
+Retrieving and cleaning the adults (15+) literacy rate percentage dataset. It contains the total percentage of the population age 15 and above who can, with understanding, read and write a short, simple statement on their everyday life. 
+
+
+```{r}
+
+literacy.rate.df <- fetchIndicatorValues("SE.ADT.LITR.ZS")
+head(literacy.rate.df)
+
+literacy.rate.expenditure <-dplyr::inner_join(gov.exp.df,literacy.rate.df,by=c("country","date"))
+
+colnames(literacy.rate.expenditure) <- c("country","date","expenditure","literacyrate")
+
+
+countries <- literacy.rate.expenditure[!duplicated(literacy.rate.expenditure[,"country"]),1]
+
+  for(i in 1: length(countries))
+  {
+    if(i == 1)
+    {
+      literacy.rate.expenditure.avg <-  calculateMeanVals(countries[i],"literacy.rate.expenditure","expenditure","literacyrate")
+    }
+    else
+    {
+literacy.rate.expenditure.avg <- rbind(literacy.rate.expenditure.avg,calculateMeanVals(countries[i],"literacy.rate.expenditure","expenditure","literacyrate"))  
+    }
+    
+  }  
+
+head(literacy.rate.expenditure.avg)
+#summary(literacy.rate.expenditure.avg)
+```
+
+
+## Pupil to teacher ratio in primary Schools
+
+Below I am parsing the number of pupils enrolled in primary school divided by the number of primary school teachers. This dataset was parsed from a CSV file, cleaned and transformed into a data frame.
+
+
+```{r}
+# load Csv
+pupil.teacher.df <- read.csv(file="https://raw.githubusercontent.com/jasonjgy2000/IS607/master/Projects/607%20Proj/Data/se.prm.enrl.tc.zs_Indicator_en_csv_v2.csv",skip = 4,header = TRUE, stringsAsFactors = FALSE,check.names = FALSE)
+
+# removing columns not needed 
+pupil.teacher.df$`Country Code` <- pupil.teacher.df$`Indicator Name` <- pupil.teacher.df$`Indicator Code` <-  NULL
+
+# renaming first column from  Country name to country
+colnames(pupil.teacher.df)[1] <- "country"
+
+#removing extra column with NA's
+pupil.teacher.df[,58] <- NULL
+
+dplyr::tbl_df(pupil.teacher.df)
+
+# wide to long transformation
+pupil.teacher.df <- pupil.teacher.df %>%  gather("date","value",2:57)
+
+# change Year column from factor to integer class type
+pupil.teacher.df$date <- as.integer(as.character(pupil.teacher.df$date))
+
+# removing records with NA values
+pupil.teacher.df <- na.omit(pupil.teacher.df)
+
+# Removing continent and special country grouping
+pupil.teacher.df <- subset(pupil.teacher.df, !(country %in% group.items$country))
+
+# removing rownames so a recount of the row numbers can be triggered
+row.names(pupil.teacher.df) <- NULL
+
+# Replacing ' from country names to an empty space 
+pupil.teacher.df$country <- str_replace_all(pupil.teacher.df$country,"'"," ")
+
+# joining the pupil teacher ratio data frame to the expenditure data frame by country and date
+pupil.techer.expenditure <-dplyr::inner_join(gov.exp.df,pupil.teacher.df,by=c("country","date"))
+
+# assigning new column names to the pupil teacher ratio expenditure data frame
+colnames(pupil.techer.expenditure) <- c("country","date","expenditure","pupilTeacher")
+
+# selecting distinct country names from the pupil.teacher.expenditure data frame
+countries <- pupil.techer.expenditure[!duplicated(pupil.techer.expenditure[,"country"]),1]
+
+# creating the average pupil teacher expenditure data frame.
+
+  for(i in 1: length(countries))
+  {
+    if(i == 1)
+    {
+      pupil.techer.expenditure.avg <-  calculateMeanVals(countries[i],"pupil.techer.expenditure","expenditure","pupilTeacher",NA)
+    }
+    else
+    {
+pupil.techer.expenditure.avg <- rbind(pupil.techer.expenditure.avg,calculateMeanVals(countries[i],"pupil.techer.expenditure","expenditure","pupilTeacher",NA))  
+    }
+  }  
+
+
+head(pupil.techer.expenditure.avg)
+```
+
+## Student enrollment primary, secondary and tertiary 
+
+Retrieving and cleaning the datasets that contain the gross enrolment ratio for primary, secondary and tertiary schools.
+
+```{r warning=FALSE,message=FALSE}
+
+enrollment.primary <- fetchIndicatorValues("SE.PRM.ENRR")
+head(enrollment.primary)
+
+enrollment.secondary <- fetchIndicatorValues("SE.SEC.ENRR")
+head(enrollment.secondary)
+
+enrollment.tertiary <- fetchIndicatorValues("SE.TER.ENRR")
+head(enrollment.tertiary)
+
+enrollment.primary$type <- "primary"
+enrollment.secondary$type <- "secondary"
+enrollment.tertiary$type <- "tertiary"
+
+# combining the primary, secondary and tertiary data frames into one data frame
+
+enrollment.all <- rbind(enrollment.primary,enrollment.secondary,enrollment.tertiary)
+
+# joining the enrollment data frame to the expenditure data frame by country and date
+enrollment.expenditure <-dplyr::inner_join(gov.exp.df,enrollment.all,by=c("country","date"))
+
+colnames(enrollment.expenditure) <- c("country","date","expenditure","enrollment","type")
+
+# selecting distinct country names from the enrollment.all data frame
+countries <- enrollment.all[!duplicated(enrollment.all[,"country"]),1]
+
+# creating the average entrollment expenditure data frame. 
+  for(i in 1: length(countries))
+  {
+    if(i == 1)
+    {
+      enrollment.expenditure.avg <-  calculateMeanVals(countries[i],"enrollment.expenditure","expenditure","enrollment","type")
+    }
+    else
+    {
+enrollment.expenditure.avg <- rbind(enrollment.expenditure.avg,calculateMeanVals(countries[i],"enrollment.expenditure","expenditure","enrollment","type"))  
+    }
+    
+  } 
+
+head(enrollment.expenditure.avg)
+```
+#Visualization
+
+## Government expenditure on education, total (% of government expenditure)
+
+```{r}
+ggplot(gov.exp.df, aes(x = value)) + geom_histogram() +ggtitle("Government Expenditure")
+```
+
+## Literacy rate, adult total (% of people ages 15 and above)
+```{r}
+plot(literacy.rate.expenditure.avg$avg_literacyrate~literacy.rate.expenditure.avg$avg_expenditure, xlab = "Expenditure",ylab = "Literacy Rate",main ="Government Expenditure vs Literacy Rate")
+```
+
+## Pupil to teacher ratio in primary Schools
+```{r}
+plot(pupil.techer.expenditure.avg$avg_pupilTeacher~pupil.techer.expenditure.avg$avg_expenditure, xlab = "Expenditure",ylab = "Pupil Teacher Ratio",main ="Government Expenditure vs Pupil Teacher Ratio")
+```
+
+
+## Student enrollment primary, secondary and tertiary 
+
+```{r}
+plot(enrollment.expenditure.avg$avg_enrollment~enrollment.expenditure.avg$avg_expenditure, xlab = "Expenditure",ylab = "Student Enrollment",main ="Government Expenditure vs Student Enrollment")
+```
+
+
+# Analysis
+
+## Literacy rate, adult total (% of people ages 15 and above)
+```{r}
+literacy.rate.cor <- cor.test(literacy.rate.expenditure.avg$avg_expenditure,literacy.rate.expenditure.avg$avg_literacyrate)
+
+literacy.rate.cor$estimate
+```
+
+
+## Pupil to teacher ratio in primary Schools
+
+```{r}
+pupil.teacher.cor <-  cor.test(pupil.techer.expenditure.avg$avg_expenditure,pupil.techer.expenditure.avg$avg_pupilTeacher)
+pupil.teacher.cor$estimate
+```
+
+## Student enrollment primary, secondary and tertiary 
+
+```{r}
+student.enrollment.cor <-  cor.test(enrollment.expenditure.avg$avg_expenditure,enrollment.expenditure.avg$avg_enrollment)
+student.enrollment.cor$estimate
+```
+
+```{r message=FALSE,warning=FALSE}
+
+df <- data.frame(item = character(0), corvalue = double(0), stringsAsFactors = FALSE)
+df <- rbind(df,data.frame(item = "Literacy Rate",value = literacy.rate.cor$estimate , stringsAsFactors = FALSE))
+df <- rbind(df,data.frame(item = "Pupil To Teacher Ratio",value = pupil.teacher.cor$estimate , stringsAsFactors = FALSE))
+df <- rbind(df,data.frame(item = "Student Enrollment",value = student.enrollment.cor$estimate , stringsAsFactors = FALSE))
+row.names(df) <- NULL
+ggplot(df, aes(x = item, y=value)) + geom_histogram(stat = "identity") + ggtitle("Correlation")
+```
+
+# Conclusion
+
+There is an extremely weak relationship between government expenditure into the educational system and their country's literacy rate, pupil to teacher ratio and the number of students enrolled in primary, secondary and tertiary schools.
+
